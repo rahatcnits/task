@@ -1,4 +1,5 @@
 const User = require("../model/user");
+const bcrypt = require("bcryptjs");
 
 exports.storeUser = async (req, res) => {
   try {
@@ -30,10 +31,8 @@ exports.getSpecificUser = async (req, res) => {
 
 exports.updateUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    const user = await User.findById(req.params.id);
+    const keys = Object.keys(req.body);
 
     if (!user) {
       return res.status(404).json({
@@ -41,6 +40,12 @@ exports.updateUser = async (req, res) => {
         message: "User not found",
       });
     }
+
+    for (let key of keys) {
+      user[key] = req.body[key];
+    }
+
+    await user.save();
 
     return res.json({
       success: true,
@@ -52,6 +57,33 @@ exports.updateUser = async (req, res) => {
       message: e.message,
     });
   }
+};
+
+exports.login = async (req, res) => {
+  // email password
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid Email/Password",
+    });
+  }
+
+  const isMatch = await bcrypt.compare(password, user.password);
+
+  if (!isMatch) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid Email/Password",
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    user,
+  });
 };
 
 exports.deleteUser = async (req, res) => {
